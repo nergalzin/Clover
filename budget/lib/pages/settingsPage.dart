@@ -1,3 +1,7 @@
+import 'package:budget/struct/keyboardIntents.dart';
+import 'package:budget/widgets/desktopIntegrationSettings.dart';
+import 'package:budget/struct/desktopIntegration.dart';
+import 'package:budget/pages/accountsPage.dart';
 import 'package:budget/colors.dart';
 import 'package:budget/database/tables.dart' hide AppSettings;
 import 'package:budget/pages/aboutPage.dart';
@@ -107,17 +111,18 @@ class MoreActionsPageState extends State<MoreActionsPage> {
                       ? Icons.live_help_outlined
                       : Icons.live_help_rounded,
                   action: () {
-                    openUrl("https://cashewapp.web.app/faq.html");
+                    openUrl("https://github.com/nergalzin/clover#readme");
                   },
                 ),
             ],
           ),
         ],
         listWidgets: [
-          Padding(
-            padding: const EdgeInsetsDirectional.only(bottom: 8.0),
-            child: PremiumBanner(),
-          ),
+          if (!isDesktopPlatform)
+            Padding(
+              padding: const EdgeInsetsDirectional.only(bottom: 8.0),
+              child: PremiumBanner(),
+            ),
           MorePages()
         ],
       );
@@ -203,9 +208,10 @@ class MorePages extends StatelessWidget {
                   padding: EdgeInsetsDirectional.symmetric(
                       vertical: 5, horizontal: 4),
                   child: SettingsContainer(
-                    onTap: () {
-                      openBottomSheet(context, RatingPopup(), fullSnap: true);
-                    },
+                    // Clover: feedback goes to the fork's GitHub
+                    // issues (same as the About page), not a rating popup.
+                    onTap: () => openUrl(
+                        "https://github.com/nergalzin/clover/issues"),
                     title: "feedback".tr(),
                     icon: appStateSettings["outlinedIcons"]
                         ? Icons.rate_review_outlined
@@ -243,9 +249,15 @@ class MorePages extends StatelessWidget {
                       : SizedBox.shrink(),
               if (hasSideNavigation == false)
                 Expanded(
-                    child: GoogleAccountLoginButton(
-                  key: settingsGoogleAccountLoginButtonKey,
-                )),
+                  child: SettingsContainerOpenPage(
+                    openPage: AccountsPage(),
+                    title: "backups".tr(),
+                    icon: appStateSettings["outlinedIcons"]
+                        ? Icons.folder_outlined
+                        : Icons.folder_rounded,
+                    isOutlined: true,
+                  ),
+                ),
             ],
           ),
           if (hasSideNavigation == false)
@@ -562,22 +574,14 @@ class SettingsPageContent extends StatelessWidget {
               : Icons.app_registration_rounded,
         ),
 
+        if (isLinuxDesktop) DesktopIntegrationSettings(),
+
         SettingsHeader(title: "tools-and-extras".tr()),
         // SettingsContainerOpenPage(
         //   openPage: AutoTransactionsPage(),
         //   title: "Auto Transactions",
         //   icon: appStateSettings["outlinedIcons"] ? Icons.auto_fix_high_outlined : Icons.auto_fix_high_rounded,
         // ),
-
-        appStateSettings["emailScanning"]
-            ? SettingsContainerOpenPage(
-                openPage: AutoTransactionsPageEmail(),
-                title: "auto-email-transactions".tr(),
-                icon: appStateSettings["outlinedIcons"]
-                    ? Icons.mark_email_unread_outlined
-                    : Icons.mark_email_unread_rounded,
-              )
-            : SizedBox.shrink(),
 
         appStateSettings["notificationScanningDebug"] &&
                 getPlatform(ignoreEmulation: true) == PlatformOS.isAndroid
@@ -606,6 +610,17 @@ class SettingsPageContent extends StatelessWidget {
               : Icons.ballot_rounded,
         ),
 
+        // Clover: list of keyboard shortcuts (also Ctrl+/ or F1).
+        if (isDesktopPlatform)
+          SettingsContainer(
+            title: "keyboard-shortcuts".tr(),
+            description: "keyboard-shortcuts-hint".tr(),
+            icon: appStateSettings["outlinedIcons"]
+                ? Icons.keyboard_outlined
+                : Icons.keyboard_rounded,
+            onTap: () => openKeyboardShortcutsPopup(),
+          ),
+
         SettingsHeader(title: "import-and-export".tr()),
 
         ExportCSV(),
@@ -618,9 +633,12 @@ class SettingsPageContent extends StatelessWidget {
 
         ImportDB(),
 
-        GoogleAccountLoginButton(
-          isOutlinedButton: false,
-          forceButtonName: "google-drive".tr(),
+        SettingsContainerOpenPage(
+          openPage: AccountsPage(),
+          title: "data-backup".tr(),
+          icon: appStateSettings["outlinedIcons"]
+              ? Icons.folder_outlined
+              : Icons.folder_rounded,
         ),
       ],
     );

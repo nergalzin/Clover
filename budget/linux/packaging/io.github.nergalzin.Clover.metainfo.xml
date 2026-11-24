@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.nergalzin.Clover</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  <name>Clover</name>
+  <summary>Budget and expense tracker with local-only storage</summary>
+  <description>
+    <p>
+      Clover is a budget and expense tracker for the Linux desktop.
+      It has no cloud and no Google account: your data stays on your computer,
+      with local backups you control.
+    </p>
+    <p>
+      Built on the open-source Cashew by James Kokoska (GPL-3.0).
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.nergalzin.Clover.desktop</launchable>
+  <url type="homepage">https://github.com/nergalzin/clover</url>
+  <url type="bugtracker">https://github.com/nergalzin/clover/issues</url>
+  <developer id="io.github.nergalzin">
+    <name>Nergalzin</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+  <categories>
+    <category>Office</category>
+    <category>Finance</category>
+  </categories>
+</component>

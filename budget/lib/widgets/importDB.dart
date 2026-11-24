@@ -1,7 +1,11 @@
+import 'package:budget/struct/filePickerCompat.dart';
+import 'package:budget/struct/restoreBackup.dart';
+import 'package:budget/widgets/accountAndBackup.dart' show openBackupRestoredPopup;
+import 'package:budget/struct/backupEncryption.dart';
+import 'package:budget/struct/fullBackup.dart';
 import 'package:budget/database/tables.dart';
 import 'package:budget/functions.dart';
 import 'package:budget/struct/settings.dart';
-import 'package:budget/struct/syncClient.dart';
 import 'package:budget/widgets/globalSnackbar.dart';
 import 'package:budget/widgets/openPopup.dart';
 import 'package:budget/widgets/openSnackbar.dart';
@@ -12,9 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
 
-Future<String?> importDBFileFromDevice(BuildContext context) async {
+// Desktop: returns a RestoreSummary (the database is swapped in at the next
+// start, see restoreBackup.dart). Web: the file name.
+Future<Object?> importDBFileFromDevice(BuildContext context) async {
   // Avoid using a file filter: PlatformException(FilePicker, Unsupported filter....
-  FilePickerResult? result = await FilePicker.platform.pickFiles();
+  FilePickerResult? result = await pickFilesCompat();
   if (result == null) {
     openSnackbar(SnackbarMessage(
       title: "error-importing".tr(),
@@ -28,7 +34,9 @@ Future<String?> importDBFileFromDevice(BuildContext context) async {
 
   String fileName = result.files.single.name;
   if (fileName.endsWith('.sql') == false &&
-      fileName.endsWith('.sqlite') == false) {
+      fileName.endsWith('.sqlite') == false &&
+      fileName.endsWith('.zip') == false &&
+      isEncryptedBackup(fileName) == false) {
     openSnackbar(SnackbarMessage(
       title: "import-warning".tr(),
       description: "import-warning-description".tr(),
@@ -38,16 +46,26 @@ Future<String?> importDBFileFromDevice(BuildContext context) async {
     ));
   }
 
-  await cancelAndPreventSyncOperation();
 
-  if (kIsWeb) {
-    Uint8List fileBytes = result.files.single.bytes!;
-    await overwriteDefaultDB(fileBytes);
-  } else {
+  if (!kIsWeb) {
     File file = File(result.files.single.path ?? "");
-    Uint8List fileBytes = await file.readAsBytes();
-    await overwriteDefaultDB(fileBytes);
+    if (isEncryptedBackup(file.path)) {
+      // Clover: encrypted backup; asks for the password if needed.
+      Uint8List? decrypted = await decryptBackupFileInteractive(context, file);
+      if (decrypted == null) return null;
+      ZipBackupContents contents = await readZipBackupBytes(decrypted);
+      return await stageRestore(contents.databaseBytes,
+          attachmentCount: contents.attachmentCount);
+    } else if (isZipBackup(file.path)) {
+      // Clover: full backup with attachments.
+      ZipBackupContents contents = await readZipBackup(file.path);
+      return await stageRestore(contents.databaseBytes,
+          attachmentCount: contents.attachmentCount);
+    }
+    return await stageRestore(await file.readAsBytes());
   }
+  Uint8List fileBytes = result.files.single.bytes!;
+  await overwriteDefaultDB(fileBytes);
   await resetLanguageToSystem(context);
   await updateSettings("databaseJustImported", true,
       pagesNeedingRefresh: [], updateGlobalState: false);
@@ -91,7 +109,9 @@ Future importDB(BuildContext context, {ignoreOverwriteWarning = false}) async {
         return await importDBFileFromDevice(context);
       },
       onSuccess: (result) {
-        if (result != null)
+        if (result is RestoreSummary) {
+          openBackupRestoredPopup(context, result);
+        } else if (result != null)
           restartAppPopup(
             context,
             description: kIsWeb

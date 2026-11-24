@@ -1,62 +1,206 @@
+// Clover: keyboard shortcuts.
+//
+// Global shortcuts handled by MaterialApp (see main.dart). They work from any
+// screen; text fields keep their own keys (typing, Ctrl+C/V, etc.) because a
+// focused text field handles a key before these shortcuts do.
+
+import 'package:easy_localization/easy_localization.dart';
+import 'package:budget/functions.dart';
+import 'package:budget/struct/desktopIntegration.dart';
 import 'package:budget/main.dart';
+import 'package:budget/pages/addTransactionPage.dart';
+import 'package:budget/pages/transactionsSearchPage.dart';
+import 'package:budget/struct/settings.dart';
 import 'package:budget/widgets/navigationFramework.dart';
+import 'package:budget/widgets/openPopup.dart';
+import 'package:budget/widgets/textWidgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Navigation page indexes (see PageNavigationFrameworkState.pages).
+const int _homePage = 0;
+const int _transactionsPage = 1;
+const int _budgetsPage = 2;
+const int _morePage = 3;
+const int _backupsPage = 8;
+
+bool _atRootOfNavigation() => !(navigatorKey.currentState?.canPop() ?? false);
+
+// Close open pages/popups one by one so the shortcut starts from the main
+// screen. maybePop respects pages that ask before closing (e.g. "discard
+// changes?" on an unsaved transaction); if a page refuses, stop there and
+// return false so no typed data is lost.
+Future<bool> _popToRoot() async {
+  NavigatorState? navigator = navigatorKey.currentState;
+  if (navigator == null) return false;
+  while (navigator.canPop()) {
+    bool popped = await navigator.maybePop();
+    if (!popped) return false;
+  }
+  return true;
+}
+
+Future<void> _goToPage(int page) async {
+  if (!await _popToRoot()) return;
+  pageNavigationFrameworkKey.currentState?.changePage(page, switchNavbar: true);
+}
+
+
+// Close the app like the window's close button does (the native side saves
+// the window size first). SystemNavigator.pop would destroy the window and
+// crash the Linux engine, so it is only a fallback for other platforms.
+Future<void> quitApp() async {
+  try {
+    await desktopChannel.invokeMethod("quit");
+  } on MissingPluginException {
+    await SystemNavigator.pop();
+  }
+}
+
+bool _shortcutsHelpOpen = false;
+
+// Translation key + keys, shown in the Ctrl+/ help popup.
+const List<List<String>> shortcutHelpItems = [
+  ["shortcut-new-transaction", "Ctrl + N"],
+  ["shortcut-search-transactions", "Ctrl + F"],
+  ["home", "Ctrl + 1"],
+  ["transactions", "Ctrl + 2"],
+  ["budgets", "Ctrl + 3"],
+  ["more", "Ctrl + 4"],
+  ["backups", "Ctrl + B"],
+  ["privacy-mode", "Ctrl + H"],
+  ["shortcut-back-close", "Esc"],
+  ["quit-app", "Ctrl + Q"],
+  ["shortcut-show-shortcuts", "keyboard-shortcuts-hint"],
+];
+
+Future<void> openKeyboardShortcutsPopup() async {
+  if (_shortcutsHelpOpen) return;
+  BuildContext? context = navigatorKey.currentContext;
+  if (context == null) return;
+  _shortcutsHelpOpen = true;
+  await openPopup(
+    context,
+    icon: appStateSettings["outlinedIcons"]
+        ? Icons.keyboard_outlined
+        : Icons.keyboard_rounded,
+    title: "keyboard-shortcuts".tr(),
+    descriptionWidget: Padding(
+      padding: const EdgeInsetsDirectional.only(top: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (List<String> item in shortcutHelpItems)
+            Padding(
+              padding: const EdgeInsetsDirectional.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(child: TextFont(text: item[0].tr(), fontSize: 16)),
+                  SizedBox(width: 20),
+                  TextFont(
+                    // Key names stay as they are; only the hint is translated.
+                    text: item[1].startsWith("Ctrl") || item[1] == "Esc"
+                        ? item[1]
+                        : item[1].tr(),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    ),
+    onSubmitLabel: "ok".tr(),
+    onSubmit: () => navigatorKey.currentState?.pop(),
+  );
+  _shortcutsHelpOpen = false;
+}
+
 Map<Type, Action<Intent>> keyboardIntents = {
   EscapeIntent: CallbackAction<EscapeIntent>(
-    onInvoke: (EscapeIntent intent) => {
-      if (navigatorKey.currentState!.canPop())
-        navigatorKey.currentState!.pop()
+    onInvoke: (EscapeIntent intent) {
+      // maybePop: pages with unsaved changes ask before closing.
+      if (!_atRootOfNavigation())
+        navigatorKey.currentState!.maybePop();
       else
         pageNavigationFrameworkKey.currentState!
-            .changePage(0, switchNavbar: true)
+            .changePage(_homePage, switchNavbar: true);
+      return null;
     },
   ),
   Digit1Intent: CallbackAction<Digit1Intent>(
-    onInvoke: (Digit1Intent intent) => {
-      // we are on the root of navigation pages
-      if (!navigatorKey.currentState!.canPop())
-        pageNavigationFrameworkKey.currentState!
-            .changePage(0, switchNavbar: true)
-    },
+    onInvoke: (Digit1Intent intent) => _goToPage(_homePage),
   ),
   Digit2Intent: CallbackAction<Digit2Intent>(
-    onInvoke: (Digit2Intent intent) => {
-      // we are on the root of navigation pages
-      if (!navigatorKey.currentState!.canPop())
-        pageNavigationFrameworkKey.currentState!
-            .changePage(1, switchNavbar: true)
-    },
+    onInvoke: (Digit2Intent intent) => _goToPage(_transactionsPage),
   ),
   Digit3Intent: CallbackAction<Digit3Intent>(
-    onInvoke: (Digit3Intent intent) => {
-      // we are on the root of navigation pages
-      if (!navigatorKey.currentState!.canPop())
-        pageNavigationFrameworkKey.currentState!
-            .changePage(2, switchNavbar: true)
-    },
+    onInvoke: (Digit3Intent intent) => _goToPage(_budgetsPage),
   ),
   Digit4Intent: CallbackAction<Digit4Intent>(
-    onInvoke: (Digit4Intent intent) => {
-      // we are on the root of navigation pages
-      if (!navigatorKey.currentState!.canPop())
-        pageNavigationFrameworkKey.currentState!
-            .changePage(3, switchNavbar: true)
+    onInvoke: (Digit4Intent intent) => _goToPage(_morePage),
+  ),
+  NewTransactionIntent: CallbackAction<NewTransactionIntent>(
+    onInvoke: (NewTransactionIntent intent) {
+      // Avoid stacking several "new transaction" pages.
+      if (!_atRootOfNavigation()) return null;
+      pushRoute(
+        null,
+        AddTransactionPage(
+          routesToPopAfterDelete: RoutesToPopAfterDelete.None,
+        ),
+      );
+      return null;
     },
+  ),
+  SearchIntent: CallbackAction<SearchIntent>(
+    onInvoke: (SearchIntent intent) {
+      if (!_atRootOfNavigation()) return null;
+      pushRoute(null, TransactionsSearchPage());
+      return null;
+    },
+  ),
+  BackupsIntent: CallbackAction<BackupsIntent>(
+    onInvoke: (BackupsIntent intent) => _goToPage(_backupsPage),
+  ),
+  PrivacyModeIntent: CallbackAction<PrivacyModeIntent>(
+    onInvoke: (PrivacyModeIntent intent) => togglePrivacyMode(),
+  ),
+  QuitIntent: CallbackAction<QuitIntent>(
+    onInvoke: (QuitIntent intent) async {
+      await quitApp();
+      return null;
+    },
+  ),
+  ShortcutsHelpIntent: CallbackAction<ShortcutsHelpIntent>(
+    onInvoke: (ShortcutsHelpIntent intent) => openKeyboardShortcutsPopup(),
   ),
 };
 
 Map<ShortcutActivator, Intent> shortcuts = {
-  LogicalKeySet(LogicalKeyboardKey.escape): const EscapeIntent(),
-  LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.digit1):
+  const SingleActivator(LogicalKeyboardKey.escape): const EscapeIntent(),
+  const SingleActivator(LogicalKeyboardKey.digit1, control: true):
       const Digit1Intent(),
-  LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.digit2):
+  const SingleActivator(LogicalKeyboardKey.digit2, control: true):
       const Digit2Intent(),
-  LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.digit3):
+  const SingleActivator(LogicalKeyboardKey.digit3, control: true):
       const Digit3Intent(),
-  LogicalKeySet(LogicalKeyboardKey.control, LogicalKeyboardKey.digit4):
+  const SingleActivator(LogicalKeyboardKey.digit4, control: true):
       const Digit4Intent(),
+  const SingleActivator(LogicalKeyboardKey.keyN, control: true):
+      const NewTransactionIntent(),
+  const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+      const SearchIntent(),
+  const SingleActivator(LogicalKeyboardKey.keyB, control: true):
+      const BackupsIntent(),
+  const SingleActivator(LogicalKeyboardKey.keyH, control: true):
+      const PrivacyModeIntent(),
+  const SingleActivator(LogicalKeyboardKey.keyQ, control: true):
+      const QuitIntent(),
+  const SingleActivator(LogicalKeyboardKey.slash, control: true):
+      const ShortcutsHelpIntent(),
+  const SingleActivator(LogicalKeyboardKey.f1): const ShortcutsHelpIntent(),
 };
 
 class EscapeIntent extends Intent {
@@ -77,4 +221,28 @@ class Digit3Intent extends Intent {
 
 class Digit4Intent extends Intent {
   const Digit4Intent();
+}
+
+class NewTransactionIntent extends Intent {
+  const NewTransactionIntent();
+}
+
+class SearchIntent extends Intent {
+  const SearchIntent();
+}
+
+class BackupsIntent extends Intent {
+  const BackupsIntent();
+}
+
+class PrivacyModeIntent extends Intent {
+  const PrivacyModeIntent();
+}
+
+class QuitIntent extends Intent {
+  const QuitIntent();
+}
+
+class ShortcutsHelpIntent extends Intent {
+  const ShortcutsHelpIntent();
 }

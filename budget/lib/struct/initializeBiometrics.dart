@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:animations/animations.dart';
 import 'package:budget/functions.dart';
 import 'package:budget/struct/settings.dart';
@@ -25,7 +27,9 @@ Future<AuthResult> checkBiometrics({
   bool checkAlways = false,
 }) async {
   try {
-    if (kIsWeb) {
+    // Clover: Linux has no biometrics plugin. Calling it throws, and
+    // on the first launch after a restore that showed a "Biometrics Error".
+    if (kIsWeb || Platform.isLinux) {
       authAvailable = false;
       await updateSettings("requireAuth", false, updateGlobalState: false);
       return AuthResult.authenticated;
@@ -45,7 +49,7 @@ Future<AuthResult> checkBiometrics({
       //bool biometricsOnly = (await auth.canCheckBiometrics);
       return (await auth.authenticate(
         localizedReason: "verify-identity".tr(),
-        options: AuthenticationOptions(biometricOnly: false),
+        biometricOnly: false,
       ))
           ? AuthResult.authenticated
           : AuthResult.unauthenticated;

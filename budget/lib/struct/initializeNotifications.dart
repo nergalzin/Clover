@@ -14,14 +14,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 Future<String?> initializeNotifications() async {
+  if (!useMobileNotificationPlugin) return null;
   // Since iOS cannot send scheduled notifications when the app is open
   // There is no need to listen to incoming notification payloads
   if (getPlatform(ignoreEmulation: true) != PlatformOS.isIOS) {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('notification_icon_android2');
     final DarwinInitializationSettings initializationSettingsDarwin =
-        DarwinInitializationSettings(
-            onDidReceiveLocalNotification: (_, __, ___, ____) {});
+        DarwinInitializationSettings();
 
     final InitializationSettings initializationSettings =
         InitializationSettings(
@@ -29,7 +29,7 @@ Future<String?> initializeNotifications() async {
       iOS: initializationSettingsDarwin,
     );
     await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveBackgroundNotificationResponse: onSelectNotification,
       onDidReceiveNotificationResponse: onSelectNotification,
     );
@@ -106,7 +106,7 @@ Future<bool> runNotificationPayLoads(context) async {
 }
 
 Future<void> setDailyNotifications(context) async {
-  if (kIsWeb) return;
+  if (!useMobileNotificationPlugin) return;
   bool notificationsEnabled = appStateSettings["notifications"] == true;
 
   if (notificationsEnabled) {
@@ -130,7 +130,7 @@ Future<void> setDailyNotifications(context) async {
 }
 
 Future<void> setUpcomingNotifications(context) async {
-  if (kIsWeb) return;
+  if (!useMobileNotificationPlugin) return;
   bool upcomingTransactionsNotificationsEnabled =
       appStateSettings["notificationsUpcomingTransactions"] == true;
   if (upcomingTransactionsNotificationsEnabled) {

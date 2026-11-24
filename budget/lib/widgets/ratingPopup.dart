@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:budget/functions.dart';
 import 'package:budget/pages/addTransactionPage.dart';
-import 'package:budget/struct/firebaseAuthGlobal.dart';
 import 'package:budget/struct/languageMap.dart';
 import 'package:budget/struct/settings.dart';
 import 'package:budget/widgets/animatedExpanded.dart';
@@ -20,14 +19,14 @@ import 'package:budget/widgets/openBottomSheet.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:budget/colors.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:budget/widgets/framework/popupFramework.dart';
 
 final InAppReview inAppReview = InAppReview.instance;
 
 bool openRatingPopupCheck(BuildContext context) {
-  // Disable this for now, we have the new in-home page review popup
+  // Clover: no "rate the app" popups. There is no app store page;
+  // feedback goes to the GitHub issues (Settings → Feedback).
   return false;
   if ((appStateSettings["numLogins"] + 1) % 10 == 0 &&
       appStateSettings["submittedFeedback"] != true) {
@@ -207,31 +206,16 @@ Future<bool> shareFeedback(String feedbackText, String feedbackType,
   bool error = false;
 
   try {
-    if ((selectedStars ?? 0) >= 4) {
-      if (await inAppReview.isAvailable()) inAppReview.requestReview();
-    }
+    // Clover: no store review request.
   } catch (e) {
     print(e.toString());
     error = true;
   }
 
   try {
-    FirebaseFirestore? db = await firebaseGetDBInstanceAnonymous();
-    if (db == null) {
-      throw ("Can't connect to db");
-    }
-    Map<String, dynamic> feedbackEntry = {
-      "stars": (selectedStars ?? -1) + 1,
-      "feedback": feedbackText,
-      "dateTime": DateTime.now(),
-      "feedbackType": feedbackType,
-      "email": feedbackEmail,
-      "platform": getPlatform().toString(),
-      "appVersion": getVersionString(),
-    };
-
-    DocumentReference feedbackCreatedOnCloud =
-        await db.collection("feedback").add(feedbackEntry);
+    // Desktop OSS: feedback used to be sent to the original author's
+    // Firebase project. There is no server anymore, so nothing is sent.
+    print("Feedback (not sent): $feedbackType $selectedStars $feedbackText");
 
     openSnackbar(SnackbarMessage(
         title: "feedback-shared".tr(),

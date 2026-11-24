@@ -94,95 +94,99 @@ class AboutPageState extends State<AboutPage> {
       ],
     );
 
-    List<Widget> developmentTeam = [
-      Padding(
+    Widget creditCard({
+      required String role,
+      required String name,
+      String? subtitle,
+      VoidCallback? onTap,
+      VoidCallback? onLongPress,
+    }) {
+      return Padding(
+        padding:
+            const EdgeInsetsDirectional.symmetric(horizontal: 15, vertical: 5),
+        child: Tappable(
+          onTap: onTap ?? () {},
+          onLongPress: onLongPress,
+          color: containerColor,
+          borderRadius: getPlatform() == PlatformOS.isIOS ? 10 : 15,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.symmetric(
+                horizontal: 13, vertical: 15),
+            child: Column(
+              children: [
+                TextFont(
+                  text: role,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  textAlign: TextAlign.center,
+                  maxLines: 5,
+                ),
+                TextFont(
+                  text: name,
+                  fontSize: 29,
+                  fontWeight: FontWeight.bold,
+                  textColor: Theme.of(context).colorScheme.onPrimaryContainer,
+                  textAlign: TextAlign.center,
+                  maxLines: 5,
+                ),
+                if (subtitle != null)
+                  TextFont(
+                    text: subtitle,
+                    fontSize: 16,
+                    textAlign: TextAlign.center,
+                    maxLines: 5,
+                    textColor: getColor(context, "textLight"),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget sectionTitle(String text) {
+      return Padding(
         padding:
             const EdgeInsetsDirectional.symmetric(horizontal: 15, vertical: 7),
         child: Center(
           child: TextFont(
-            text: "development-team".tr(),
+            text: text,
             fontSize: 20,
             fontWeight: FontWeight.bold,
             textAlign: TextAlign.center,
             maxLines: 5,
           ),
         ),
+      );
+    }
+
+    // Clover: the fork's maintainer first, then credit to the
+    // original Cashew authors (required by GPL-3.0 and kept on purpose).
+    List<Widget> developmentTeam = [
+      sectionTitle("Clover"),
+      // Contact goes through GitHub Issues (public, searchable, no email
+      // address baked into every release). Private/security reports: see
+      // SECURITY.md in the repository.
+      creditCard(
+        role: "maintainer".tr(),
+        name: "Nergalzin",
+        subtitle: "report-bug-or-suggest".tr(),
+        onTap: () => openUrl(
+            "https://github.com/nergalzin/clover/issues"),
+        onLongPress: () => copyToClipboard(
+            "https://github.com/nergalzin/clover/issues"),
       ),
-      Padding(
-        padding:
-            const EdgeInsetsDirectional.symmetric(horizontal: 15, vertical: 5),
-        child: Tappable(
-          onTap: () {
-            openUrl('mailto:dapperappdeveloper@gmail.com');
-          },
-          onLongPress: () {
-            copyToClipboard("dapperappdeveloper@gmail.com");
-          },
-          color: containerColor,
-          borderRadius: getPlatform() == PlatformOS.isIOS ? 10 : 15,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: 13, vertical: 15),
-            child: Column(
-              children: [
-                TextFont(
-                  text: "lead-developer".tr(),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  textAlign: TextAlign.center,
-                  maxLines: 5,
-                ),
-                TextFont(
-                  text: "James",
-                  fontSize: 29,
-                  fontWeight: FontWeight.bold,
-                  textColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  textAlign: TextAlign.center,
-                  maxLines: 5,
-                ),
-                TextFont(
-                  text: "dapperappdeveloper@gmail.com",
-                  fontSize: 16,
-                  textAlign: TextAlign.center,
-                  maxLines: 5,
-                  textColor: getColor(context, "textLight"),
-                ),
-              ],
-            ),
-          ),
-        ),
+      SizedBox(height: 10),
+      sectionTitle("based-on-cashew".tr()),
+      creditCard(
+        role: "original-author".tr(),
+        name: "James Kokoska",
+        subtitle: "github.com/jameskokoska/Cashew",
+        onTap: () => openUrl("https://github.com/jameskokoska/Cashew"),
       ),
-      Padding(
-        padding:
-            const EdgeInsetsDirectional.symmetric(horizontal: 15, vertical: 5),
-        child: Tappable(
-          onTap: () {},
-          color: containerColor,
-          borderRadius: getPlatform() == PlatformOS.isIOS ? 10 : 15,
-          child: Padding(
-            padding: const EdgeInsetsDirectional.symmetric(
-                horizontal: 13, vertical: 15),
-            child: Column(
-              children: [
-                TextFont(
-                  text: "database-designer".tr(),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  textAlign: TextAlign.center,
-                  maxLines: 5,
-                ),
-                TextFont(
-                  text: "YuYing",
-                  fontSize: 29,
-                  fontWeight: FontWeight.bold,
-                  textColor: Theme.of(context).colorScheme.onPrimaryContainer,
-                  textAlign: TextAlign.center,
-                  maxLines: 5,
-                ),
-              ],
-            ),
-          ),
-        ),
+      creditCard(
+        role: "database-designer".tr(),
+        name: "YuYing",
       ),
       SizedBox(height: 10),
       Padding(
@@ -190,7 +194,7 @@ class AboutPageState extends State<AboutPage> {
             const EdgeInsetsDirectional.symmetric(horizontal: 15, vertical: 7),
         child: Center(
           child: TextFont(
-            text: "made-in-canada".tr() + " " + "🍁",
+            text: "Cashew: " + "made-in-canada".tr() + " 🍁",
             fontSize: 14,
             textAlign: TextAlign.center,
             maxLines: 5,
@@ -218,13 +222,6 @@ class AboutPageState extends State<AboutPage> {
       AboutInfoBox(
         title: "Flutter",
         link: "https://flutter.dev/",
-        padding: fullScreenLayout
-            ? EdgeInsetsDirectional.symmetric(horizontal: 7.5, vertical: 5)
-            : null,
-      ),
-      AboutInfoBox(
-        title: "Google Cloud APIs",
-        link: "https://cloud.google.com/",
         padding: fullScreenLayout
             ? EdgeInsetsDirectional.symmetric(horizontal: 7.5, vertical: 5)
             : null,
@@ -760,54 +757,6 @@ void deleteAllDataFlow(BuildContext context) {
     icon: appStateSettings["outlinedIcons"]
         ? Icons.warning_outlined
         : Icons.warning_rounded,
-    onExtraLabel2: "erase-synced-data-and-cloud-backups".tr(),
-    onExtra2: () {
-      popRoute(context);
-      openBottomSheet(
-        context,
-        PopupFramework(
-          title: "erase-cloud-data".tr(),
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.only(
-                  bottom: 18,
-                  start: 5,
-                  end: 5,
-                ),
-                child: TextFont(
-                  text: "erase-cloud-data-description".tr(),
-                  fontSize: 16.5,
-                  textAlign: TextAlign.center,
-                  maxLines: 10,
-                ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: SyncCloudBackupButton(
-                      onTap: () async {
-                        popRoute(context);
-                        pushRoute(context, AccountsPage());
-                      },
-                    ),
-                  ),
-                  SizedBox(width: 18),
-                  Expanded(
-                    child: BackupsCloudBackupButton(
-                      onTap: () async {
-                        popRoute(context);
-                        pushRoute(context, AccountsPage());
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    },
     onSubmit: () async {
       popRoute(context);
       openPopup(
@@ -855,7 +804,7 @@ class AboutLinks extends StatelessWidget {
             _buildTappable(
               context: context,
               isExternalLink: true,
-              onTap: () => openUrl("https://github.com/jameskokoska/Cashew"),
+              onTap: () => openUrl("https://github.com/nergalzin/clover"),
               icon: MoreIcons.github,
               text: "app-is-open-source".tr(namedArgs: {"app": globalAppName}),
             ),
@@ -863,7 +812,7 @@ class AboutLinks extends StatelessWidget {
             _buildTappable(
               context: context,
               isExternalLink: true,
-              onTap: () => openUrl("https://cashewapp.web.app/faq.html"),
+              onTap: () => openUrl("https://github.com/nergalzin/clover#readme"),
               icon: appStateSettings["outlinedIcons"]
                   ? Icons.live_help_outlined
                   : Icons.live_help_rounded,
@@ -872,9 +821,9 @@ class AboutLinks extends StatelessWidget {
             const HorizontalBreak(padding: EdgeInsetsDirectional.zero),
             _buildTappable(
               context: context,
-              isExternalLink: false,
-              onTap: () =>
-                  openBottomSheet(context, RatingPopup(), fullSnap: true),
+              isExternalLink: true,
+              // Clover: feedback goes to the fork's GitHub issues.
+              onTap: () => openUrl("https://github.com/nergalzin/clover/issues"),
               icon: appStateSettings["outlinedIcons"]
                   ? Icons.rate_review_outlined
                   : Icons.rate_review_rounded,
@@ -883,8 +832,8 @@ class AboutLinks extends StatelessWidget {
             const HorizontalBreak(padding: EdgeInsetsDirectional.zero),
             _buildTappable(
               context: context,
-              isExternalLink: false,
-              onTap: () => showChangelogForce(context),
+              isExternalLink: true,
+              onTap: () => openUrl("https://github.com/nergalzin/clover/releases"),
               icon: appStateSettings["outlinedIcons"]
                   ? Icons.list_alt_outlined
                   : Icons.list_alt_rounded,
@@ -904,7 +853,7 @@ class AboutLinks extends StatelessWidget {
             _buildTappable(
               context: context,
               isExternalLink: true,
-              onTap: () => openUrl("http://cashewapp.web.app/policy.html"),
+              onTap: () => openUrl("https://github.com/nergalzin/clover#privacy"),
               icon: appStateSettings["outlinedIcons"]
                   ? Icons.policy_outlined
                   : Icons.policy_rounded,

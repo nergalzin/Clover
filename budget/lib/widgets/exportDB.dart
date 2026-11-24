@@ -7,6 +7,10 @@ import 'package:budget/widgets/util/saveFile.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io';
+
+import 'package:budget/struct/fullBackup.dart';
+import 'package:path/path.dart' as p;
 
 Future saveDBFileToDevice({
   required BuildContext boxContext,
@@ -26,6 +30,20 @@ Future saveDBFileToDevice({
     dataStore.insertAll(dataStore.length, data);
   }
 
+  // Clover: with attachments, export one .zip with everything.
+  List<File> attachments = await listAttachmentFiles();
+  if (attachments.isNotEmpty) {
+    Directory temp = await Directory.systemTemp.createTemp("clover-export-");
+    try {
+      String zipPath = p.join(temp.path, "backup.zip");
+      await writeZipBackup(zipPath, dataStore, attachments);
+      dataStore = await File(zipPath).readAsBytes();
+    } finally {
+      await temp.delete(recursive: true);
+    }
+    fileName = p.setExtension(fileName, ".zip");
+  }
+
   return await saveFile(
     boxContext: boxContext,
     dataStore: dataStore,
@@ -39,7 +57,7 @@ Future saveDBFileToDevice({
 Future exportDB({required BuildContext boxContext}) async {
   await openLoadingPopupTryCatch(() async {
     String fileName =
-        "cashew-" + cleanFileNameString(DateTime.now().toString()) + ".sql";
+        "clover-" + cleanFileNameString(DateTime.now().toString()) + ".sql";
     await saveDBFileToDevice(boxContext: boxContext, fileName: fileName);
   });
 }

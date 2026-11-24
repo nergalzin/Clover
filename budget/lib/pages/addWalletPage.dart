@@ -1,3 +1,5 @@
+import 'package:budget/pages/exchangeRatesPage.dart';
+import 'package:budget/struct/bankIcons.dart';
 import 'package:budget/database/tables.dart';
 import 'package:budget/functions.dart';
 import 'package:budget/pages/addTransactionPage.dart';
@@ -58,7 +60,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
   String? selectedTitle;
   late Color? selectedColor =
       widget.wallet?.colour == null ? null : HexColor(widget.wallet?.colour);
-  String? selectedIconName;
+  late String? selectedIconName = widget.wallet?.iconName;
   Map<String, dynamic> currencies = {};
   bool customCurrencyIcon = false;
   String? searchCurrency = "";
@@ -118,6 +120,7 @@ class _AddWalletPageState extends State<AddWalletPage> {
       walletPk: widget.wallet != null ? widget.wallet!.walletPk : "-1",
       name: selectedTitle ?? "",
       colour: toHexString(selectedColor),
+      iconName: walletHasIconName(selectedIconName) ? selectedIconName : null,
       dateCreated:
           widget.wallet != null ? widget.wallet!.dateCreated : DateTime.now(),
       dateTimeModified: null,
@@ -470,6 +473,40 @@ class _AddWalletPageState extends State<AddWalletPage> {
             child: SizedBox(height: 15),
           ),
           SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(
+                start: 24,
+                end: 24,
+                bottom: 10,
+              ),
+              child: SettingsContainer(
+                isOutlined: true,
+                isWideOutlined: true,
+                onTap: () async {
+                  String? result = await selectWalletIconPopup(context,
+                      currentIconName: selectedIconName);
+                  if (result == null) return;
+                  setState(() {
+                    selectedIconName = result == "" ? null : result;
+                  });
+                  determineBottomButton();
+                },
+                title: "bank-or-account".tr(),
+                description: bankFromIconName(selectedIconName)?.name ??
+                    (isCustomWalletIcon(selectedIconName)
+                        ? "custom-image".tr()
+                        : "no-icon".tr()),
+                icon: appStateSettings["outlinedIcons"]
+                    ? Icons.account_balance_outlined
+                    : Icons.account_balance_rounded,
+                iconScale: 1,
+                afterWidget: walletHasIconName(selectedIconName)
+                    ? WalletIcon(iconName: selectedIconName, size: 34)
+                    : null,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
             child: widget.wallet == null ||
                     widget.routesToPopAfterDelete ==
                         RoutesToPopAfterDelete.PreventDelete
@@ -627,18 +664,18 @@ class _AddWalletPageState extends State<AddWalletPage> {
                     ),
                     Flexible(
                       child: TappableTextEntry(
-                        title: convertToMoney(
+                        title: convertToMoney(ignorePrivacy: true, 
                           Provider.of<AllWallets>(context),
                           currencyKey: selectedCurrency,
                           initialBalance,
                           decimals: selectedDecimals,
                         ),
-                        placeholder: convertToMoney(
+                        placeholder: convertToMoney(ignorePrivacy: true, 
                           Provider.of<AllWallets>(context),
                           currencyKey: selectedCurrency,
                           initialBalance,
                         ),
-                        showPlaceHolderWhenTextEquals: convertToMoney(
+                        showPlaceHolderWhenTextEquals: convertToMoney(ignorePrivacy: true, 
                           Provider.of<AllWallets>(context),
                           currencyKey: selectedCurrency,
                           0,
@@ -683,6 +720,19 @@ class _AddWalletPageState extends State<AddWalletPage> {
               ),
             ),
           SliverToBoxAdapter(child: SizedBox(height: 10)),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: 24,
+                end: 24,
+                bottom: currencyHasExchangeRate(selectedCurrency) ? 0 : 12,
+              ),
+              child: MissingExchangeRateWarning(
+                currencyKey: selectedCurrency,
+                onRateSet: () => setState(() {}),
+              ),
+            ),
+          ),
           CurrencyPicker(
             showExchangeRateInfoNotice: true,
             onSelected: setSelectedCurrency,
@@ -805,7 +855,7 @@ class _CorrectBalancePopupState extends State<CorrectBalancePopup> {
                     autoSizeText: true,
                     maxLines: 1,
                     minFontSize: 16,
-                    text: convertToMoney(
+                    text: convertToMoney(ignorePrivacy: true, 
                       Provider.of<AllWallets>(context),
                       totalWalletAmount,
                       currencyKey: widget.wallet.currency,
@@ -831,7 +881,7 @@ class _CorrectBalancePopupState extends State<CorrectBalancePopup> {
                       autoSizeText: true,
                       maxLines: 1,
                       minFontSize: 16,
-                      text: convertToMoney(
+                      text: convertToMoney(ignorePrivacy: true, 
                         Provider.of<AllWallets>(context),
                         enteredAmount,
                         currencyKey: widget.wallet.currency,
@@ -925,7 +975,7 @@ Future<bool> correctWalletBalance(
     String title) async {
   String transferString = wallet.name +
       ": " +
-      convertToMoney(
+      convertToMoney(ignorePrivacy: true, 
         Provider.of<AllWallets>(context, listen: false),
         newAmount,
         currencyKey: wallet.currency,
@@ -1433,7 +1483,7 @@ class _TransferBalancePopupState extends State<TransferBalancePopup> {
                           autoSizeText: true,
                           maxLines: 1,
                           minFontSize: 16,
-                          text: convertToMoney(
+                          text: convertToMoney(ignorePrivacy: true, 
                             Provider.of<AllWallets>(context),
                             enteredAmount
                                 .abs(), //We flip the arrow instead of showing negative
@@ -1486,7 +1536,7 @@ class _TransferBalancePopupState extends State<TransferBalancePopup> {
               //   child: Button(
               //     label: transferFee == 0
               //         ? "transfer-fee".tr()
-              //         : convertToMoney(
+              //         : convertToMoney(ignorePrivacy: true, 
               //             Provider.of<AllWallets>(context),
               //             transferFee.abs(),
               //             addCurrencyName: true,

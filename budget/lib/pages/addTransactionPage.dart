@@ -1,3 +1,5 @@
+import 'package:budget/struct/bankIcons.dart';
+import 'package:budget/struct/localAttachments.dart';
 import 'package:budget/database/generatePreviewData.dart';
 import 'package:budget/database/tables.dart';
 import 'package:budget/functions.dart';
@@ -9,17 +11,13 @@ import 'package:budget/pages/editAssociatedTitlesPage.dart';
 import 'package:budget/pages/editWalletsPage.dart';
 import 'package:budget/pages/premiumPage.dart';
 import 'package:budget/pages/settingsPage.dart';
-import 'package:budget/pages/sharedBudgetSettings.dart';
 import 'package:budget/pages/transactionsListPage.dart';
 import 'package:budget/struct/databaseGlobal.dart';
 import 'package:budget/struct/navBarIconsData.dart';
 import 'package:budget/struct/settings.dart';
 import 'package:budget/struct/upcomingTransactionsFunctions.dart';
-import 'package:budget/struct/uploadAttachment.dart';
-import 'package:budget/widgets/accountAndBackup.dart';
 import 'package:budget/widgets/navigationFramework.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:budget/widgets/button.dart';
 import 'package:budget/widgets/categoryIcon.dart';
 import 'package:budget/widgets/dropdownSelect.dart';
@@ -1462,6 +1460,11 @@ class _AddTransactionPageState extends State<AddTransactionPage>
                               amount: 0.4,
                             );
                           },
+                          getAvatar: (TransactionWallet wallet) {
+                            return walletHasIcon(wallet)
+                                ? WalletIcon(iconName: wallet.iconName, size: 20)
+                                : null;
+                          },
                           getLabel: (TransactionWallet wallet) {
                             return getWalletStringName(
                                 Provider.of<AllWallets>(context), wallet);
@@ -1514,9 +1517,6 @@ class _AddTransactionPageState extends State<AddTransactionPage>
                     },
                     getSelected: (String item) {
                       return selectedPayer == item;
-                    },
-                    onLongPress: (String item) {
-                      memberPopup(context, item);
                     },
                   ),
                 ),
@@ -1886,7 +1886,7 @@ class _AddTransactionPageState extends State<AddTransactionPage>
                       onPressed: () {
                         ContextMenuController.removeAny();
                         copyToClipboard(
-                          convertToMoney(
+                          convertToMoney(ignorePrivacy: true, 
                             Provider.of<AllWallets>(context, listen: false),
                             currencyKey:
                                 Provider.of<AllWallets>(context, listen: false)
@@ -1932,7 +1932,7 @@ class _AddTransactionPageState extends State<AddTransactionPage>
                                 alignment: AlignmentDirectional.centerEnd,
                                 child: TextFont(
                                   textAlign: TextAlign.end,
-                                  text: convertToMoney(
+                                  text: convertToMoney(ignorePrivacy: true, 
                                     Provider.of<AllWallets>(context),
                                     selectedAmount ?? 0,
                                     decimals: getSelectedWallet(listen: true)
@@ -1984,7 +1984,7 @@ class _AddTransactionPageState extends State<AddTransactionPage>
                                       alignment: AlignmentDirectional.centerEnd,
                                       child: TextFont(
                                         textAlign: TextAlign.end,
-                                        text: convertToMoney(
+                                        text: convertToMoney(ignorePrivacy: true, 
                                           Provider.of<AllWallets>(context),
                                           (selectedAmount ?? 0) *
                                               (amountRatioToPrimaryCurrencyGivenPk(
@@ -4132,51 +4132,6 @@ String? getFileIdFromUrl(String url) {
   }
 }
 
-Future<List<int>?> getGoogleDriveFileImageData(String url) async {
-  dynamic result = await openLoadingPopupTryCatch(
-    () async {
-      String? fileId = getFileIdFromUrl(url);
-      if (fileId == null) throw ("No file id found!");
-
-      if (googleUser == null) {
-        await signInGoogle(drivePermissionsAttachments: true);
-      }
-
-      final authHeaders = await googleUser!.authHeaders;
-      final authenticateClient = GoogleAuthClient(authHeaders);
-      drive.DriveApi driveApi = drive.DriveApi(authenticateClient);
-
-      List<int> dataStore = [];
-
-      drive.File fileMetadata =
-          await driveApi.files.get(fileId, $fields: 'size') as drive.File;
-      int totalBytes = int.parse(fileMetadata.size ?? "0");
-
-      dynamic response = await driveApi.files
-          .get(fileId, downloadOptions: drive.DownloadOptions.fullMedia);
-
-      num receivedBytes = 0;
-
-      loadingProgressKey.currentState?.setProgressPercentage(0);
-
-      await for (var data in response.stream) {
-        dataStore.insertAll(dataStore.length, data);
-        receivedBytes += data.length;
-        double progress = receivedBytes / totalBytes;
-        loadingProgressKey.currentState?.setProgressPercentage(progress);
-      }
-      loadingProgressKey.currentState?.setProgressPercentage(0);
-      return dataStore;
-    },
-    onError: (error) {
-      loadingProgressKey.currentState?.setProgressPercentage(0);
-      print(error);
-    },
-  );
-  if (result is List<int>) return result;
-  return null;
-}
-
 class RenderImageData extends StatelessWidget {
   const RenderImageData(
       {required this.imageData, required this.openLinkOnError, super.key});
@@ -4228,9 +4183,11 @@ class LinkInNotes extends StatelessWidget {
     this.iconDataAfter,
     this.color,
     this.extraWidget,
+    this.text,
     super.key,
   });
   final String link;
+  final String? text;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
   final IconData? iconData;
@@ -4265,7 +4222,7 @@ class LinkInNotes extends StatelessWidget {
             SizedBox(width: 10),
             Expanded(
               child: TextFont(
-                text: getDomainNameFromURL(link),
+                text: text ?? getDomainNameFromURL(link),
                 fontSize: 16,
                 maxLines: 1,
               ),
@@ -4331,14 +4288,22 @@ class _TransactionNotesTextInputState extends State<TransactionNotesTextInput> {
     }
   }
 
+  void _onFilesDropped(List<String> links) {
+    for (String link in links) addAttachmentLinkToNote(link);
+  }
+
   @override
   void initState() {
     super.initState();
     widget.noteInputController.addListener(_printLatestValue);
+    // Clover: files dropped on the window while this screen is open
+    // become attachments of this transaction.
+    registerAttachmentDropHandler(_onFilesDropped);
   }
 
   @override
   void dispose() {
+    unregisterAttachmentDropHandler(_onFilesDropped);
     widget.noteInputController.removeListener(_printLatestValue);
     super.dispose();
   }
@@ -4384,138 +4349,6 @@ class _TransactionNotesTextInputState extends State<TransactionNotesTextInput> {
               }
             },
           ),
-          HorizontalBreak(
-            padding: EdgeInsetsDirectional.zero,
-            color: appStateSettings["materialYou"]
-                ? dynamicPastel(
-                    context,
-                    Theme.of(context).colorScheme.secondaryContainer,
-                    amount: 0.1,
-                    inverse: true,
-                  )
-                : getColor(context, "lightDarkAccent"),
-          ),
-          LinkInNotes(
-            color: (appStateSettings["materialYou"]
-                ? Theme.of(context).colorScheme.secondaryContainer
-                : getColor(context, "canvasContainer")),
-            link: "add-attachment".tr(),
-            iconData: appStateSettings["outlinedIcons"]
-                ? Icons.attachment_outlined
-                : Icons.attachment_rounded,
-            iconDataAfter: appStateSettings["outlinedIcons"]
-                ? Icons.add_outlined
-                : Icons.add_rounded,
-            onTap: () async {
-              openBottomSheet(
-                context,
-                // We need to use the custom controller because the ask for title popup uses the default controller
-                // Which we need to control separately
-                useCustomController: true,
-                reAssignBottomSheetControllerGlobal: false,
-                PopupFramework(
-                  title: "add-attachment".tr().capitalizeFirstofEach,
-                  subtitle: "add-attachment-description".tr(),
-                  child: Column(
-                    children: [
-                      if (kIsWeb == false)
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(bottom: 13),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButtonStacked(
-                                  filled: false,
-                                  alignStart: true,
-                                  alignBeside: true,
-                                  padding: EdgeInsetsDirectional.symmetric(
-                                      horizontal: 20, vertical: 20),
-                                  text: "take-photo".tr(),
-                                  iconData: appStateSettings["outlinedIcons"]
-                                      ? Icons.camera_alt_outlined
-                                      : Icons.camera_alt_rounded,
-                                  onTap: () async {
-                                    popRoute(context);
-                                    if (await checkLockedFeatureIfInDemoMode(
-                                            context) ==
-                                        true) {
-                                      String? result = await getPhotoAndUpload(
-                                          source: ImageSource.camera);
-                                      if (result != null)
-                                        addAttachmentLinkToNote(result);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (kIsWeb == false)
-                        Padding(
-                          padding: const EdgeInsetsDirectional.only(bottom: 13),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButtonStacked(
-                                  filled: false,
-                                  alignStart: true,
-                                  alignBeside: true,
-                                  padding: EdgeInsetsDirectional.symmetric(
-                                      horizontal: 20, vertical: 20),
-                                  text: "select-photo".tr(),
-                                  iconData: appStateSettings["outlinedIcons"]
-                                      ? Icons.photo_library_outlined
-                                      : Icons.photo_library_rounded,
-                                  onTap: () async {
-                                    popRoute(context);
-                                    if (await checkLockedFeatureIfInDemoMode(
-                                            context) ==
-                                        true) {
-                                      String? result = await getPhotoAndUpload(
-                                          source: ImageSource.gallery);
-                                      addAttachmentLinkToNote(result);
-                                    }
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      Padding(
-                        padding: const EdgeInsetsDirectional.only(bottom: 13),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButtonStacked(
-                                filled: false,
-                                alignStart: true,
-                                alignBeside: true,
-                                padding: EdgeInsetsDirectional.symmetric(
-                                    horizontal: 20, vertical: 20),
-                                text: "select-file".tr(),
-                                iconData: appStateSettings["outlinedIcons"]
-                                    ? Icons.file_open_outlined
-                                    : Icons.file_open_rounded,
-                                onTap: () async {
-                                  popRoute(context);
-                                  if (await checkLockedFeatureIfInDemoMode(
-                                          context) ==
-                                      true) {
-                                    String? result = await getFileAndUpload();
-                                    addAttachmentLinkToNote(result);
-                                  }
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
           AnimatedSizeSwitcher(
             child: extractedLinks.length <= 0
                 ? Container(
@@ -4526,60 +4359,23 @@ class _TransactionNotesTextInputState extends State<TransactionNotesTextInput> {
                       for (String link in extractedLinks)
                         LinkInNotes(
                           link: link,
+                          iconData: isLocalAttachmentLink(link)
+                              ? (appStateSettings["outlinedIcons"]
+                                  ? Icons.attach_file_outlined
+                                  : Icons.attach_file_rounded)
+                              : null,
                           onLongPress: () {
                             copyToClipboard(link);
                           },
                           onTap: () async {
-                            openUrl(link);
+                            if (isLocalAttachmentLink(link)) {
+                              openLocalAttachment(link);
+                            } else {
+                              openUrl(link);
+                            }
                           },
                           extraWidget: Row(
                             children: [
-                              if (link.contains("drive.google.com"))
-                                Padding(
-                                  padding: const EdgeInsetsDirectional.only(
-                                      end: 3, start: 5),
-                                  child: IconButtonScaled(
-                                    iconData: appStateSettings["outlinedIcons"]
-                                        ? Icons.photo_outlined
-                                        : Icons.photo_rounded,
-                                    iconSize: 16,
-                                    scale: 1.6,
-                                    onTap: () async {
-                                      List<int>? result =
-                                          await getGoogleDriveFileImageData(
-                                              link);
-                                      if (result == null) {
-                                        openUrl(link);
-                                      } else {
-                                        openBottomSheet(
-                                          context,
-                                          PopupFramework(
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadiusDirectional
-                                                      .circular(getPlatform() ==
-                                                              PlatformOS.isIOS
-                                                          ? 10
-                                                          : 15),
-                                              child: RenderImageData(
-                                                imageData: result,
-                                                openLinkOnError: () {
-                                                  openUrl(link);
-                                                },
-                                              ),
-                                            ),
-                                          ),
-                                        );
-                                        // Update the size of the bottom sheet
-                                        Future.delayed(
-                                            Duration(milliseconds: 300), () {
-                                          bottomSheetControllerGlobal
-                                              .snapToExtent(0);
-                                        });
-                                      }
-                                    },
-                                  ),
-                                ),
                               Padding(
                                 padding: const EdgeInsetsDirectional.only(
                                     end: 11, start: 5),
@@ -4595,9 +4391,13 @@ class _TransactionNotesTextInputState extends State<TransactionNotesTextInput> {
                                       icon: appStateSettings["outlinedIcons"]
                                           ? Icons.link_off_outlined
                                           : Icons.link_off_rounded,
-                                      title: "remove-link-question".tr(),
-                                      description:
-                                          "remove-link-description".tr(),
+                                      title: isLocalAttachmentLink(link)
+                                          ? "remove-attachment-question".tr()
+                                          : "remove-link-question".tr(),
+                                      description: isLocalAttachmentLink(link)
+                                          ? "remove-attachment-description"
+                                              .tr()
+                                          : null,
                                       onCancel: () {
                                         popRoute(context);
                                       },
@@ -4617,6 +4417,25 @@ class _TransactionNotesTextInputState extends State<TransactionNotesTextInput> {
                     ],
                   ),
           ),
+          // Clover: local attachments (copied into the data folder).
+          if (localAttachmentsSupported)
+            LinkInNotes(
+              link: "",
+              text: "add-attachment".tr(),
+              color: (appStateSettings["materialYou"]
+                  ? Theme.of(context).colorScheme.secondaryContainer
+                  : getColor(context, "canvasContainer")),
+              iconData: appStateSettings["outlinedIcons"]
+                  ? Icons.attach_file_outlined
+                  : Icons.attach_file_rounded,
+              iconDataAfter: appStateSettings["outlinedIcons"]
+                  ? Icons.add_outlined
+                  : Icons.add_rounded,
+              onTap: () async {
+                String? result = await pickAndAttachFile();
+                addAttachmentLinkToNote(result);
+              },
+            ),
         ],
       ),
     );

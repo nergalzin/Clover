@@ -1,3 +1,4 @@
+import 'package:budget/struct/bankIcons.dart';
 import 'dart:io';
 import 'dart:math';
 
@@ -684,7 +685,7 @@ class _SelectAmountState extends State<SelectAmount> {
         ? calculateResult(amountConverted)
             .toString()
             .replaceAll(".", getDecimalSeparator())
-        : convertToMoney(
+        : convertToMoney(ignorePrivacy: true, 
             forceAbsoluteZero: false,
             Provider.of<AllWallets>(context),
             calculateResult(amountConverted),
@@ -818,7 +819,12 @@ class _SelectAmountState extends State<SelectAmount> {
                           setSelectedWallet(wallet);
                           bottomSheetControllerGlobal.reMeasure();
                         },
-                        getLabel: (TransactionWallet wallet) {
+                        getAvatar: (TransactionWallet wallet) {
+                            return walletHasIcon(wallet)
+                                ? WalletIcon(iconName: wallet.iconName, size: 20)
+                                : null;
+                          },
+                          getLabel: (TransactionWallet wallet) {
                           return getWalletStringName(
                               Provider.of<AllWallets>(context), wallet);
                         },

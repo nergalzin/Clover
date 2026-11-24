@@ -1,0 +1,59 @@
+# Clover as a Flatpak.
+#
+# Packs an already built release bundle (build/linux/x64/release/bundle): the
+# GitHub workflow builds it on Ubuntu 22.04, then runs build-flatpak.sh.
+# Locally:  ./linux/packaging/flatpak/build-flatpak.sh
+app-id: io.github.nergalzin.Clover
+runtime: org.gnome.Platform
+runtime-version: "50"
+sdk: org.gnome.Sdk
+command: clover
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  # Exchange rates.
+  - --share=network
+  # Data: same folder as the AppImage (see clover.sh).
+  - --filesystem=xdg-data/io.github.nergalzin.Clover:create
+  # "Start with the system" writes its entry here.
+  - --filesystem=xdg-config/autostart:create
+  # Exported files (CSV, backups) are saved to Downloads.
+  - --filesystem=xdg-download
+  # Tray icon.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # Desktop notifications.
+  - --talk-name=org.freedesktop.Notifications
+  # Backup password in the system keyring (same entry as the AppImage).
+  - --talk-name=org.freedesktop.secrets
+  - --env=SECRET_BACKEND=service
+modules:
+  - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
+
+  - name: clover
+    buildsystem: simple
+    sources:
+      - type: dir
+        path: ../../../build/linux/x64/release/bundle
+        dest: bundle
+      - type: file
+        path: clover.sh
+      - type: dir
+        path: ../icons
+        dest: icons
+      - type: file
+        path: ../io.github.nergalzin.Clover.desktop
+      - type: file
+        path: ../io.github.nergalzin.Clover.metainfo.xml
+    build-commands:
+      - mkdir -p /app/clover
+      - cp -r bundle/. /app/clover/
+      - install -Dm755 clover.sh /app/bin/clover
+      - install -Dm644 io.github.nergalzin.Clover.desktop -t /app/share/applications
+      - install -Dm644 io.github.nergalzin.Clover.metainfo.xml -t /app/share/metainfo
+      - |
+        for size in 16 24 32 48 64 128 256 512; do
+          install -Dm644 icons/$size.png \
+            /app/share/icons/hicolor/${size}x${size}/apps/io.github.nergalzin.Clover.png
+        done

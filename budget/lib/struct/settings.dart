@@ -1,3 +1,5 @@
+import 'package:budget/struct/restoreBackup.dart' show isSettingKeptOnRestore;
+import 'package:budget/struct/desktopIntegration.dart';
 import 'dart:convert';
 import 'package:budget/database/tables.dart';
 import 'package:budget/functions.dart';
@@ -38,6 +40,7 @@ Future<bool> initializeSettings() async {
     try {
       print("Settings were loaded from backup, trying to restore");
       String storedSettings = (await database.getSettings()).settingsJSON;
+      Map<String, dynamic> settingsOfThisComputer = userSettings;
       await sharedPreferences.setString('userSettings', storedSettings);
       print(storedSettings);
       userSettings = json.decode(storedSettings);
@@ -51,8 +54,11 @@ Future<bool> initializeSettings() async {
           userSettings[key] = userPreferencesDefault[key];
         }
       });
-      // Always reset the language/locale when restoring a backup
-      userSettings["locale"] = "System";
+      // Clover: settings of this computer (language, encryption,
+      // desktop options) are kept instead of the ones in the backup.
+      settingsOfThisComputer.forEach((key, value) {
+        if (isSettingKeptOnRestore(key)) userSettings[key] = value;
+      });
       userSettings["databaseJustImported"] = false;
       print("Settings were restored");
     } catch (e) {
@@ -300,6 +306,8 @@ void openLanguagePicker(BuildContext context) {
               );
               await Future.delayed(Duration(milliseconds: 50));
               initializeLocalizedMonthNames();
+              // Clover: tray menu / notification labels.
+              sendDesktopLabels();
               popRoute(context);
             },
           ),
@@ -318,6 +326,7 @@ Future<void> resetLanguageToSystem(BuildContext context) async {
     pagesNeedingRefresh: [],
     updateGlobalState: false,
   );
+  sendDesktopLabels();
 }
 
 // Backup user settings by creating an entry in the db

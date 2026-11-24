@@ -7,6 +7,7 @@ import 'package:budget/functions.dart';
 import 'package:budget/pages/addTransactionPage.dart';
 import 'package:budget/struct/databaseGlobal.dart';
 import 'package:budget/struct/initializeNotifications.dart';
+import 'package:budget/struct/desktopIntegration.dart';
 import 'package:budget/struct/notificationsGlobal.dart';
 import 'package:budget/struct/settings.dart';
 import 'package:budget/widgets/animatedExpanded.dart';
@@ -25,7 +26,13 @@ import 'package:budget/widgets/timeDigits.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 
-bool notificationsGlobalEnabled = kIsWeb == false;
+// Desktop OSS: scheduled notifications are not supported by
+// flutter_local_notifications on Linux/Windows yet, so they are disabled there.
+// Clover: on Linux the reminders are shown by the in-app scheduler in
+// struct/desktopIntegration.dart (the mobile notification plugin is not used).
+bool notificationsGlobalEnabled =
+    kIsWeb == false && (!isDesktopPlatform || isLinuxDesktop);
+bool get useMobileNotificationPlugin => kIsWeb == false && !isDesktopPlatform;
 
 enum ReminderNotificationType {
   IfAppNotOpened,
@@ -319,6 +326,8 @@ List<String> _reminderStrings = [
 Future<bool> scheduleDailyNotification(
     BuildContext context, TimeOfDay timeOfDay,
     {bool scheduleNowDebug = false}) async {
+  // Linux: reminders are shown by DesktopNotificationScheduler.
+  if (!useMobileNotificationPlugin) return true;
   // If the app was opened on the day the notification was scheduled it will be
   // cancelled and set to the next day because of _nextInstanceOfSetTime
   // If ReminderNotificationType.Everyday is not true
@@ -354,15 +363,12 @@ Future<bool> scheduleDailyNotification(
       iOS: darwinNotificationDetails,
     );
     await flutterLocalNotificationsPlugin.zonedSchedule(
-      i,
-      'notification-reminder-title'.tr(),
-      chosenMessage,
-      dateTime,
-      notificationDetails,
-      androidAllowWhileIdle: true,
+      id: i,
+      title: 'notification-reminder-title'.tr(),
+      body: chosenMessage,
+      scheduledDate: dateTime,
+      notificationDetails: notificationDetails,
       payload: 'addTransaction',
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.dateAndTime,
 
       // If exact time was used, need USE_EXACT_ALARM and SCHEDULE_EXACT_ALARM permissions
@@ -384,15 +390,17 @@ Future<bool> scheduleDailyNotification(
 }
 
 Future<bool> cancelDailyNotification() async {
+  if (!useMobileNotificationPlugin) return true;
   // Need to cancel all, including the one at 0 - even if it does not exist
   for (int i = 0; i <= 14; i++) {
-    await flutterLocalNotificationsPlugin.cancel(i);
+    await flutterLocalNotificationsPlugin.cancel(id: i);
   }
   print("Cancelled notifications for daily reminder");
   return true;
 }
 
 Future<bool> scheduleUpcomingTransactionsNotification(context) async {
+  if (!useMobileNotificationPlugin) return true;
   await cancelUpcomingTransactionsNotification();
 
   AndroidNotificationDetails androidNotificationDetails =
@@ -440,15 +448,12 @@ Future<bool> scheduleUpcomingTransactionsNotification(context) async {
     );
     if (upcomingTransaction.dateCreated.isAfter(DateTime.now())) {
       await flutterLocalNotificationsPlugin.zonedSchedule(
-        idStart,
-        'notification-upcoming-transaction-title'.tr(),
-        chosenMessage,
-        dateTime,
-        notificationDetails,
-        androidAllowWhileIdle: true,
+        id: idStart,
+        title: 'notification-upcoming-transaction-title'.tr(),
+        body: chosenMessage,
+        scheduledDate: dateTime,
+        notificationDetails: notificationDetails,
         payload: 'upcomingTransaction',
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
 
         // If exact time was used, need USE_EXACT_ALARM and SCHEDULE_EXACT_ALARM permissions
         // which are only meant for calendar/reminder based applications
@@ -470,6 +475,7 @@ Future<bool> scheduleUpcomingTransactionsNotification(context) async {
 }
 
 Future<bool> cancelUpcomingTransactionsNotification() async {
+  if (!useMobileNotificationPlugin) return true;
   List<Transaction> upcomingTransactions =
       await database.getAllUpcomingTransactions(
     startDate: DateTime.now().justDay(dayOffset: -1),
@@ -478,7 +484,7 @@ Future<bool> cancelUpcomingTransactionsNotification() async {
   int idStart = 100;
   for (Transaction upcomingTransaction in upcomingTransactions) {
     idStart++;
-    await flutterLocalNotificationsPlugin.cancel(idStart);
+    await flutterLocalNotificationsPlugin.cancel(id: idStart);
   }
   print("Cancelled notifications for upcoming");
   return true;
@@ -500,7 +506,8 @@ tz.TZDateTime _nextInstanceOfSetTime(TimeOfDay timeOfDay, {int dayOffset = 0}) {
 }
 
 Future<bool> initializeNotificationsPlatform() async {
-  if (kIsWeb || Platform.isLinux) {
+  if (isLinuxDesktop) return desktopCapabilities.notifications;
+  if (!useMobileNotificationPlugin) {
     return false;
   }
   bool result = await checkNotificationsPermissionAll();
@@ -535,6 +542,7 @@ Future<bool> checkNotificationsPermissionAndroid() async {
 }
 
 Future<bool> checkNotificationsPermissionAll() async {
+  if (isLinuxDesktop) return desktopCapabilities.notifications;
   try {
     if (Platform.isAndroid) return await checkNotificationsPermissionAndroid();
     if (Platform.isIOS) return await checkNotificationsPermissionIOS();

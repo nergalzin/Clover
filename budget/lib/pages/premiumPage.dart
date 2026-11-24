@@ -26,8 +26,12 @@ import 'package:sa3_liquid/sa3_liquid.dart';
 import 'package:budget/widgets/openContainerNavigation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
-bool premiumPopupEnabled = kIsWeb == false;
-bool tryStoreEnabled = kIsWeb == false && kDebugMode == false;
+// Clover: in-app purchases belong to the original app's stores
+// (Google Play / App Store) and don't exist on desktop, so the premium popups,
+// banner and store connection are disabled there. All features stay unlocked.
+bool premiumPopupEnabled = kIsWeb == false && !isDesktopPlatform;
+bool tryStoreEnabled =
+    kIsWeb == false && kDebugMode == false && !isDesktopPlatform;
 StreamSubscription<List<PurchaseDetails>>? purchaseListener;
 Map<String, ProductDetails> storeProducts = {};
 Map<String, String> productIDs = {
@@ -84,7 +88,7 @@ class PremiumPage extends StatelessWidget {
                               ),
                               Column(
                                 children: [
-                                  CashewProBanner(large: true),
+                                  CloverProBanner(large: true),
                                   SizedBox(height: 4),
                                   TextFont(
                                     text: "budget-like-a-pro".tr() +
@@ -427,8 +431,8 @@ class _FreePremiumMessageState extends State<FreePremiumMessage> {
   }
 }
 
-class CashewProBanner extends StatelessWidget {
-  const CashewProBanner({this.large = false, this.fontColor, super.key});
+class CloverProBanner extends StatelessWidget {
+  const CloverProBanner({this.large = false, this.fontColor, super.key});
   final bool large;
   final Color? fontColor;
 
@@ -531,7 +535,7 @@ class ManageSubscription extends StatelessWidget {
                     fontSize: 16,
                   ),
             SizedBox(height: 10),
-            CashewProBanner(fontColor: getColor(context, "black")),
+            CloverProBanner(fontColor: getColor(context, "black")),
             TextFont(
               text: currentPlanName ?? "",
               fontSize: 23,
@@ -1297,7 +1301,7 @@ class _FadeOutAndLockFeatureState extends State<FadeOutAndLockFeature> {
                   fontSize: 15,
                 ),
                 SizedBox(height: 5),
-                CashewProBanner(fontColor: getColor(context, "black")),
+                CloverProBanner(fontColor: getColor(context, "black")),
                 SizedBox(height: 15),
                 LowKeyButton(
                   onTap: openPremiumPopup,
@@ -1402,7 +1406,7 @@ class PremiumBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (kIsWeb) return SizedBox.shrink();
+    if (kIsWeb || isDesktopPlatform) return SizedBox.shrink();
     double borderRadius = 15;
     bool purchased = appStateSettings["purchaseID"] != null;
 
@@ -1459,7 +1463,7 @@ class PremiumBanner extends StatelessWidget {
                                   mainAxisAlignment:
                                       MainAxisAlignment.spaceBetween,
                                   children: [
-                                    CashewProBanner(),
+                                    CloverProBanner(),
                                     purchased
                                         ? Container(
                                             margin:

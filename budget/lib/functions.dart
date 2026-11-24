@@ -1,3 +1,5 @@
+import 'package:budget/struct/desktopIntegration.dart' show restartDesktopApp;
+import 'package:budget/struct/localAttachments.dart';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:budget/database/tables.dart';
@@ -36,6 +38,15 @@ extension CapExtension on String {
       .split(" ")
       .map((str) => str.capitalizeFirst)
       .join(" ");
+
+  // Clover: "Title Case" only in English. Other languages (pt, es,
+  // fr, ...) write titles in sentence case: "Insira a quantia", not
+  // "Insira A Quantia".
+  String get capitalizeTitle {
+    String? locale = navigatorKey.currentContext?.locale.languageCode;
+    if (locale == null || locale == "en") return this.capitalizeFirstofEach;
+    return this.capitalizeFirst;
+  }
 }
 
 extension DateUtils on DateTime {
@@ -167,6 +178,8 @@ bool hasDecimalPoints(double? value) {
   return false;
 }
 
+const String privacyMask = "•••••";
+
 String convertToMoney(AllWallets allWallets, double amount,
     {String? currencyKey,
     double? finalNumber,
@@ -183,7 +196,13 @@ String convertToMoney(AllWallets allWallets, double amount,
     bool forceDefaultNumberFormatter = false,
     bool forceAbsoluteZero = true,
     NumberFormat Function(int? decimalDigits, String? locale, String? symbol)?
-        getCustomNumberFormat}) {
+        getCustomNumberFormat,
+    bool ignorePrivacy = false}) {
+  // Clover: privacy mode hides amounts everywhere except where an
+  // amount is typed or edited (those calls pass ignorePrivacy).
+  if (!ignorePrivacy && appStateSettings["privacyMode"] == true) {
+    return privacyMask;
+  }
   int numberDecimals = decimals ??
       allWallets.indexedByPk[appStateSettings["selectedWalletPk"]]?.decimals ??
       2;
@@ -924,7 +943,10 @@ String pluralString(bool condition, String string) {
 
 bool lockAppWaitForRestart = false;
 void restartAppPopup(context,
-    {String? subtitle, String? description, String? codeBlock}) async {
+    {String? title,
+    String? subtitle,
+    String? description,
+    String? codeBlock}) async {
   // For now, enforce this until better solution found
   if (kIsWeb || true) {
     // Lock the side navigation
@@ -933,9 +955,13 @@ void restartAppPopup(context,
 
     openPopup(
       context,
-      title: kIsWeb
-          ? "please-refresh-the-application".tr()
-          : "please-restart-the-application".tr(),
+      title: title ??
+          (kIsWeb
+              ? "please-refresh-the-application".tr()
+              : "please-restart-the-application".tr()),
+      // Clover: the app restarts itself.
+      onSubmit: kIsWeb ? null : () => restartDesktopApp(),
+      onSubmitLabel: kIsWeb ? null : "restart-now".tr(),
       description: description,
       subtitle: subtitle,
       descriptionWidget: codeBlock == null
@@ -1142,7 +1168,7 @@ Future<String> getDeviceInfo() async {
 }
 
 List<String> extractLinks(String text) {
-  RegExp regExp = RegExp(r'https?:\/\/(?:www\.)?\S+(?=\s)');
+  RegExp regExp = RegExp(r'(?:https?:\/\/(?:www\.)?|cashew-attachment:\/\/)\S+(?=\s)');
   Iterable<RegExpMatch> matches = regExp.allMatches(text);
   List<String> links = [];
   for (RegExpMatch match in matches) {
@@ -1152,6 +1178,9 @@ List<String> extractLinks(String text) {
 }
 
 String getDomainNameFromURL(String text) {
+  // Clover: local attachments show the file name.
+  if (text.startsWith("cashew-attachment://"))
+    return attachmentDisplayName(text);
   RegExp regExp = RegExp(
       r'^(?:https?:\/\/)?(?:[^@\/\n]+@)?(?:www\.)?([^:\/?\n]+)',
       multiLine: true,
@@ -1161,7 +1190,7 @@ String getDomainNameFromURL(String text) {
 }
 
 String cleanupNoteStringWithURLs(String text) {
-  RegExp regExp = RegExp(r'https?:\/\/(?:www\.)?\S+(?=\s)',
+  RegExp regExp = RegExp(r'(?:https?:\/\/(?:www\.)?|cashew-attachment:\/\/)\S+(?=\s)',
       multiLine: true, caseSensitive: false);
 
   Iterable<Match> matches = regExp.allMatches(text);
@@ -1338,6 +1367,10 @@ enum PlatformOS {
   isAndroid,
   web,
 }
+
+// Clover: true when running as a native Linux/Windows/macOS app.
+bool get isDesktopPlatform =>
+    !kIsWeb && (Platform.isLinux || Platform.isWindows || Platform.isMacOS);
 
 PlatformOS? getPlatform({bool ignoreEmulation = false}) {
   if (appStateSettings["iOSEmulate"] == true && ignoreEmulation == false) {

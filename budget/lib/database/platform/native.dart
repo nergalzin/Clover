@@ -1,4 +1,5 @@
 // native.dart
+import 'package:budget/struct/restoreBackup.dart' show applyPendingRestore;
 import 'package:budget/database/tables.dart';
 import 'package:budget/struct/databaseGlobal.dart';
 import 'package:drift/native.dart';
@@ -6,6 +7,20 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:drift/drift.dart';
 import 'dart:io';
+import 'package:budget/widgets/accountAndBackup.dart' show restrictToOwner;
+
+// Clover: on desktop the database lives in the per-app data
+// folder (Linux: ~/.local/share/<app-id>, Windows: %APPDATA%\<app-id>)
+// instead of the user's Documents folder.
+Future<String> getDatabaseDirectoryPath() async {
+  if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+    final Directory dir = await getApplicationSupportDirectory();
+    if (!await dir.exists()) await dir.create(recursive: true);
+    await restrictToOwner(dir.path);
+    return dir.path;
+  }
+  return (await getApplicationDocumentsDirectory()).path;
+}
 
 Future<FinanceDatabase> constructDb(String dbName,
     {Uint8List? initialDataWeb}) async {
@@ -13,8 +28,10 @@ Future<FinanceDatabase> constructDb(String dbName,
   final db = LazyDatabase(() async {
     // put the database file, called db.sqlite here, into the documents folder
     // for your app.
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, dbName + '.sqlite'));
+    String directory = await getDatabaseDirectoryPath();
+    // Clover: a restored backup waits here until the next start.
+    if (dbName == "db") applyPendingRestore(directory);
+    final file = File(p.join(directory, dbName + '.sqlite'));
     // return NativeDatabase(file);
     QueryExecutor foregroundExecutor = NativeDatabase(file);
     QueryExecutor backgroundExecutor = NativeDatabase.createInBackground(file);
@@ -27,8 +44,7 @@ Future<DBFileInfo> getCurrentDBFileInfo() async {
   Uint8List dbFileBytes;
   late Stream<List<int>> mediaStream;
 
-  final dbFolder = await getApplicationDocumentsDirectory();
-  final dbFile = File(p.join(dbFolder.path, 'db.sqlite'));
+  final dbFile = File(p.join(await getDatabaseDirectoryPath(), 'db.sqlite'));
   //print("FILE SIZE:" + (dbFile.lengthSync() / 1e+6).toString());
   dbFileBytes = await dbFile.readAsBytes();
   mediaStream = Stream.value(List<int>.from(dbFileBytes));
@@ -37,8 +53,7 @@ Future<DBFileInfo> getCurrentDBFileInfo() async {
 }
 
 Future overwriteDefaultDB(Uint8List dataStore) async {
-  final dbFolder = await getApplicationDocumentsDirectory();
-  final dbFile = File(p.join(dbFolder.path, 'db.sqlite'));
+  final dbFile = File(p.join(await getDatabaseDirectoryPath(), 'db.sqlite'));
   await dbFile.writeAsBytes(dataStore);
   // we need to be able to sync with others after the restore
   await sharedPreferences.setString("dateOfLastSyncedWithClient", "{}");
