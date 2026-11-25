@@ -18,6 +18,12 @@
 > endorsed by the original author. The original README is kept in
 > [README-upstream.md](README-upstream.md).
 
+<p align="center">
+  <img alt="Clover home screen: accounts, budgets, goals and recent transactions" src="docs/screenshots/home.png" width="860">
+</p>
+
+<p align="center"><sub>Screenshots use the app's built-in demo data (Preview Demo), not real finances.</sub></p>
+
 ## What is different from Cashew
 
 | | Cashew | Clover |
@@ -41,6 +47,11 @@ Everything else (budgets, transactions, goals, subscriptions, loans,
 graphs, CSV import, themes, translations) comes from Cashew.
 
 ## Local backups
+
+
+<p align="center">
+  <img alt="Backups page: backup, export, import, auto backups, folders" src="docs/screenshots/backups.png" width="860">
+</p>
 
 Open **Backups** in the side menu:
 
@@ -68,6 +79,11 @@ Where your data lives on Linux:
 
 ## Attachments
 
+
+<p align="center">
+  <img alt="Add transaction popup with notes and an attached receipt" src="docs/screenshots/attachments.png" width="860">
+</p>
+
 In the add/edit transaction screen, use **Add Attachment** (below the notes)
 or **drag and drop** files onto the window. The file is copied into the
 attachments folder; your original file is not touched. Click the attachment,
@@ -77,6 +93,11 @@ Removing an attachment from a transaction does not delete the file.
 anymore to the trash.
 
 ## Encrypted backups
+
+
+<p align="center">
+  <img alt="Set Backup Password dialog shown when turning on Encrypt Backups" src="docs/screenshots/encrypted-backups.png" width="860">
+</p>
 
 In **Backups**, turn on **Encrypt Backups** to protect backup files with a
 password (AES-256-GCM, key derived with Argon2id). Choose where the password
@@ -108,6 +129,11 @@ encryption for that).
 
 ## Desktop integration
 
+
+<p align="center">
+  <img alt="Settings, Desktop section: tray, autostart, popups as windows, update check" src="docs/screenshots/desktop-settings.png" width="860">
+</p>
+
 In **Settings → Desktop**:
 
 - **Keep Running in the Tray**: closing the window keeps the app in the
@@ -129,6 +155,11 @@ window back.
 
 ## Keyboard shortcuts
 
+
+<p align="center">
+  <img alt="Keyboard Shortcuts dialog (Ctrl + /)" src="docs/screenshots/shortcuts.png" width="860">
+</p>
+
 | Action | Keys |
 |---|---|
 | New transaction | `Ctrl + N` |
@@ -142,6 +173,15 @@ window back.
 
 The window size is remembered between runs
 (`~/.config/io.github.nergalzin.Clover/window.ini`).
+
+## Privacy mode
+
+Press `Ctrl + H` (or use **Hide Amounts** in the side menu or the tray menu) to mask every
+amount in the app with dots, for example before sharing your screen. Press it again to show them.
+
+<p align="center">
+  <img alt="Home screen with all amounts hidden by privacy mode" src="docs/screenshots/privacy-mode.png" width="860">
+</p>
 
 ## Privacy
 
