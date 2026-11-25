@@ -14,7 +14,7 @@ How to use:
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-11-24
+## [0.1.0] - 2026-11-25
 
 First release of Clover, a new app built on [Cashew](https://github.com/jameskokoska/Cashew)
 (5.4.3) by James Kokoska (GPL-3.0).
@@ -26,3 +26,6 @@ First release of Clover, a new app built on [Cashew](https://github.com/jameskok
   shortcuts, AppImage and Flatpak packaging.
 - Everything else (budgets, transactions, goals, subscriptions, loans,
   graphs, CSV import, themes, translations) comes from Cashew.
+
+[Unreleased]: https://github.com/nergalzin/clover/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/nergalzin/clover/releases/tag/v0.1.0
